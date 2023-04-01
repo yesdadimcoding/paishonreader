@@ -1,20 +1,14 @@
 # importing libraries
 import os, shutil, atexit 
 from pathlib import Path
-from tkinter import CENTER, Canvas , filedialog , Tk, Menu 
+from tkinter import CENTER, Canvas , filedialog , Tk, Menu, messagebox
 from PIL import Image , ImageTk
 from zipfile import ZipFile
 
 global canvas
 global tempdir
-tempdir = Path("C:/Users/ADMIN/Desktop/MangaHaven/temp")
-
-def SelectDir():
-   try:
-      directory = filedialog.askdirectory() 
-      return directory
-   except:
-      pass
+directory = os.getcwd()
+tempdir = Path(directory,"temp")
 
 # Create File explorer:
 def browseFiles():
@@ -36,12 +30,7 @@ def extractPage(filename, page):
       deleteAll()
       with ZipFile(filename, "r") as zipobj:
          listOfDirectories = zipobj.namelist()
-         if listOfDirectories[1].endswith((".jpg",".png",".JPG")):
-            zipobj.extract(listOfDirectories[page],tempdir)
-         else:
-            with ZipFile(listOfDirectories):
-               zipobj.extract(listOfDirectories[1],tempdir)
-         zipobj.close()
+         zipobj.extract(listOfDirectories[page],tempdir)
    except:
       pass
 
@@ -63,8 +52,7 @@ canvas.place(relx = 0.5, rely = 0.5 , anchor = CENTER)
 
 # Load bookmark function:
 def loadBookmark():
-   global file
-   global pageNum
+   global file, pageNum, tempdir
    bmark = open("bookmark.txt","r")
    str = bmark.read()
    file, pageNumStr = str.split(" at page ")
@@ -72,22 +60,10 @@ def loadBookmark():
    extractPage(file, pageNum)
    display()
 
-def Denest(path):
-   global new_path
-   global new_path2
-   dirs = os.listdir(path)
-   new_path = Path(path, dirs[0])
-   if dirs[0].endswith((".jpg",".png",".JPG")):
-      try:
-         nested_path = os.listdir(new_path)
-         new_path = Path(path, dirs[0], nested_path[0])
-      except NotADirectoryError:
-         pass
-      return new_path
-
-   else:
-      new_path2 = Denest(new_path)
-      return new_path2
+def getPath(path):
+   for (root, dirs, files) in os.walk(path, topdown= True):  
+      path = os.path.join(str(root), str(dirs).strip("[]'"), str(files).strip("[]'"))
+   return path
 
 # function to display images: 
 def display():
@@ -96,7 +72,7 @@ def display():
       global tempdir
       global canvas
       canvas.delete("all")
-      image_path = Denest(tempdir)
+      image_path = getPath(tempdir)
       image = Image.open(image_path)
       panel_height = canvas.winfo_height()
       image_width, image_height = image.size
@@ -111,8 +87,9 @@ def display():
    except IndexError:
       extractPage(file, pageNum + 1 )
       display()
-   except FileNotFoundError:
-      pass 
+   except PermissionError:
+      
+      pass
 
 #Deletes all files in temp directory
 def deleteAll():
@@ -125,33 +102,28 @@ def deleteAll():
 
 #extracts the first page (usually the cover)
 def getManga():
-   global pageNum
-   global tempdir
-   global file
+   global pageNum, file, tempdir
    pageNum = 1
    file = browseFiles()
    extractPage(file, pageNum)
    display()
 
 def nextPage():
-   global pageNum
-   global file
+   global pageNum, file, tempdir 
    pageNum = pageNum + 1
    deleteAll()
    extractPage(file, pageNum)
    display()
 
 def previousPage():
-   global pageNum
-   global file
+   global pageNum, file, tempdir
    pageNum = pageNum - 1
    deleteAll()
    extractPage(file, pageNum)
    display()
 
 def bookmark():
-   global pageNum
-   global file
+   global pageNum, file
    bmark = open("bookmark.txt","w")
    pageNumStr = str(pageNum)
    sep = " at page "
@@ -160,13 +132,15 @@ def bookmark():
    bmark.close()
 
 def ConfigWindow():
+   #Create config window:
    configwin = Tk()
    configwin.title("Configure Manga Reader")
    configwin.attributes("-fullscreen", False)
    configwin.geometry("600x300")
    configwin.config(background = "grey")
    configwin.resizable(True, True)
-   
+
+
 atexit.register(deleteAll)
 
 #Add menu bar
